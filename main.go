@@ -10,9 +10,10 @@ import (
 
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/joho/godotenv"
-	"github.com/ptickz/expenses-monitor-golang/src/config"
-	"github.com/ptickz/expenses-monitor-golang/src/core"
-	"github.com/ptickz/expenses-monitor-golang/src/transport"
+	"github.com/ptickz/expenses-monitor-golang/internal/config"
+	"github.com/ptickz/expenses-monitor-golang/internal/core"
+	"github.com/ptickz/expenses-monitor-golang/internal/store"
+	"github.com/ptickz/expenses-monitor-golang/internal/transport"
 )
 
 func main() {
@@ -36,11 +37,14 @@ func main() {
 		log.Fatalf("db ping: %v", err)
 	}
 
-	app := core.New(pool)
+	st := store.New(pool)
+
+	app := core.New(st)
 
 	tgBot, err := transport.NewBot(app, conf.TelegramBotToken)
 	if err != nil {
 		log.Fatalf("bot init: %v", err)
 	}
+
 	tgBot.Listen(ctx)
 }
