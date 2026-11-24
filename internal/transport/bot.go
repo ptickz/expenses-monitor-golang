@@ -3,6 +3,7 @@ package transport
 import (
 	"context"
 	"log"
+	"log/slog"
 
 	"github.com/go-telegram/bot"
 	"github.com/go-telegram/bot/models"
@@ -10,12 +11,17 @@ import (
 )
 
 type Bot struct {
-	api  *bot.Bot
-	core *core.Core
+	logger      *slog.Logger
+	api         *bot.Bot
+	core        *core.Core
+	adminID     int64
+	groupChatID int64
 }
 
-func NewBot(core *core.Core, token string) (*Bot, error) {
-	t := &Bot{core: core}
+func NewBot(l *slog.Logger, core *core.Core, token string, adminID, groupChatID int64) (*Bot, error) {
+	l = l.With("component", "bot")
+
+	t := &Bot{logger: l, core: core, adminID: adminID, groupChatID: groupChatID}
 
 	api, err := bot.New(token, bot.WithDefaultHandler(t.defaultHandler))
 	if err != nil {

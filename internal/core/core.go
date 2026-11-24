@@ -2,17 +2,22 @@ package core
 
 import (
 	"log"
+	"log/slog"
 
 	"github.com/ptickz/expenses-monitor-golang/internal/store"
 )
 
 type Core struct {
-	st *store.Store
+	logger *slog.Logger
+	st     *store.Store
 }
 
-func New(st *store.Store) *Core {
+func New(l *slog.Logger, st *store.Store) *Core {
+	l = l.With("component", "core")
+
 	return &Core{
-		st: st,
+		logger: l,
+		st:     st,
 	}
 }
 
