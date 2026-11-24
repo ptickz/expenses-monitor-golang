@@ -1,6 +1,6 @@
 export PATH := $(CURDIR)/bin:$(PATH)
 
-.PHONY: build lint test fix install-deps migrate-up migrate-down migrate-status migrate-new
+.PHONY: build lint test fix generate install-deps migrate-up migrate-down migrate-status migrate-new
 .DEFAULT_GOAL := build
 
 build: lint test
@@ -11,9 +11,13 @@ fix:
 	golangci-lint run --fix ./...
 
 lint:
+	sqlc diff
 	golangci-lint run ./...
 	go vet ./...
 	govulncheck ./...
+
+generate:
+	sqlc generate
 
 test:
 	go test -race ./...
@@ -35,3 +39,4 @@ install-deps:
 	GOBIN=$(CURDIR)/bin go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@latest
 	GOBIN=$(CURDIR)/bin go install golang.org/x/vuln/cmd/govulncheck@latest
 	GOBIN=$(CURDIR)/bin go install github.com/pressly/goose/v3/cmd/goose@latest
+	GOBIN=$(CURDIR)/bin go install github.com/sqlc-dev/sqlc/cmd/sqlc@latest
