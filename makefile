@@ -1,6 +1,6 @@
 export PATH := $(CURDIR)/bin:$(PATH)
 
-.PHONY: build lint test fix generate install-deps migrate-up migrate-down migrate-status migrate-new
+.PHONY: build lint test test-db fix generate install-deps migrate-up migrate-down migrate-status migrate-new
 .DEFAULT_GOAL := build
 
 build: lint test
@@ -19,8 +19,14 @@ lint:
 generate:
 	sqlc generate
 
-test:
+test: test-db
 	go test -race ./...
+
+test-db:
+	@set -a; . ./.env; set +a; \
+	db=$${TEST_DB_DSN##*/}; db=$${db%%\?*}; \
+	docker exec expenses_go_db sh -c "psql -U \"\$$POSTGRES_USER\" -d \"\$$POSTGRES_DB\" -Atc \"select 1 from pg_database where datname = '$$db'\" | grep -q 1 || createdb -U \"\$$POSTGRES_USER\" $$db"; \
+	GOOSE_DBSTRING="$$TEST_DB_DSN" goose up >/dev/null
 
 migrate-up:
 	goose up
