@@ -3,16 +3,16 @@ package core
 import (
 	"log"
 
-	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/ptickz/expenses-monitor-golang/internal/store"
 )
 
 type Core struct {
-	db *pgxpool.Pool
+	st *store.Store
 }
 
-func New(pool *pgxpool.Pool) *Core {
+func New(st *store.Store) *Core {
 	return &Core{
-		db: pool,
+		st: st,
 	}
 }
 
