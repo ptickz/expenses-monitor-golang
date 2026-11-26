@@ -9,6 +9,55 @@ import (
 	"context"
 )
 
+const ensureUser = `-- name: EnsureUser :one
+INSERT INTO users (source, external_id, name)
+VALUES ($1, $2, $3)
+ON CONFLICT (source, external_id) DO UPDATE SET name = users.name
+RETURNING id, source, external_id, name, created_at
+`
+
+type EnsureUserParams struct {
+	Source     UserSource
+	ExternalID string
+	Name       string
+}
+
+func (q *Queries) EnsureUser(ctx context.Context, arg EnsureUserParams) (User, error) {
+	row := q.db.QueryRow(ctx, ensureUser, arg.Source, arg.ExternalID, arg.Name)
+	var i User
+	err := row.Scan(
+		&i.ID,
+		&i.Source,
+		&i.ExternalID,
+		&i.Name,
+		&i.CreatedAt,
+	)
+	return i, err
+}
+
+const getUserByExternalID = `-- name: GetUserByExternalID :one
+SELECT id, source, external_id, name, created_at FROM users
+WHERE source = $1 AND external_id = $2
+`
+
+type GetUserByExternalIDParams struct {
+	Source     UserSource
+	ExternalID string
+}
+
+func (q *Queries) GetUserByExternalID(ctx context.Context, arg GetUserByExternalIDParams) (User, error) {
+	row := q.db.QueryRow(ctx, getUserByExternalID, arg.Source, arg.ExternalID)
+	var i User
+	err := row.Scan(
+		&i.ID,
+		&i.Source,
+		&i.ExternalID,
+		&i.Name,
+		&i.CreatedAt,
+	)
+	return i, err
+}
+
 const grantAdmin = `-- name: GrantAdmin :exec
 INSERT INTO admin_access (user_id)
 VALUES ($1)

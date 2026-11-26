@@ -7,8 +7,10 @@ import (
 	"log/slog"
 	"os"
 	"os/signal"
+	"strconv"
 	"syscall"
 	"time"
+	_ "time/tzdata"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/joho/godotenv"
@@ -16,7 +18,7 @@ import (
 	"github.com/ptickz/expenses-monitor-golang/internal/core"
 	"github.com/ptickz/expenses-monitor-golang/internal/logctx"
 	"github.com/ptickz/expenses-monitor-golang/internal/store"
-	"github.com/ptickz/expenses-monitor-golang/internal/transport"
+	"github.com/ptickz/expenses-monitor-golang/internal/transport/telegram"
 )
 
 func main() {
@@ -67,7 +69,12 @@ func run(ctx context.Context, conf config.Config, logger *slog.Logger) error {
 
 	app := core.New(logger, st)
 
-	tgBot, err := transport.NewBot(logger, app, conf.TelegramBotToken, conf.AdminTelegramID, conf.GroupChatID)
+	err = app.BootstrapAdmin(ctx, core.SourceTelegram, strconv.FormatInt(conf.AdminTelegramID, 10))
+	if err != nil {
+		return fmt.Errorf("bootstrap admin: %w", err)
+	}
+
+	tgBot, err := telegram.NewBot(ctx, logger, app, conf.TelegramBotToken, conf.GroupChatID)
 	if err != nil {
 		return fmt.Errorf("bot init: %w", err)
 	}

@@ -15,7 +15,7 @@ var (
 	amountRegexp     = regexp.MustCompile(`^(\d+)(?:[.,](\d+))?$`)
 )
 
-func ParseAmount(amount string, minorUnits uint8) (uint64, error) {
+func ParseAmount(amount string, minorUnits int16) (int64, error) {
 	amount = strings.Join(strings.Fields(amount), "")
 	matches := amountRegexp.FindStringSubmatch(amount)
 	if matches == nil {
@@ -30,44 +30,46 @@ func ParseAmount(amount string, minorUnits uint8) (uint64, error) {
 	}
 	fraction += strings.Repeat("0", int(minorUnits)-len(fraction))
 
-	wholeUint, err := strconv.ParseUint(whole, 10, 64)
+	wholeInt, err := strconv.ParseInt(whole, 10, 64)
 	if err != nil {
 		return 0, err
 	}
 
-	fractionUint := uint64(0)
+	fractionInt := int64(0)
 	if fraction != "" {
-		fractionUint, err = strconv.ParseUint(fraction, 10, 64)
+		fractionInt, err = strconv.ParseInt(fraction, 10, 64)
 		if err != nil {
 			return 0, err
 		}
 	}
 
-	if wholeUint > (math.MaxUint64-fractionUint)/multiplier {
+	if wholeInt > (math.MaxInt64-fractionInt)/multiplier {
 		return 0, strconv.ErrRange
 	}
 
-	return (wholeUint * multiplier) + fractionUint, nil
+	return wholeInt*multiplier + fractionInt, nil
 }
 
-func FormatAmount(amount uint64, minorUnits uint8, positive bool) string {
-	var str string
-	if minorUnits != 0 && amount > 0 {
-		divisor := pow10(minorUnits)
-		whole := amount / divisor
-		fraction := amount % divisor
-		str = strconv.FormatUint(whole, 10) + "," + fmt.Sprintf("%0*d", minorUnits, fraction)
-	} else {
-		str = strconv.FormatUint(amount, 10)
+func FormatAmount(amount int64, minorUnits int16) string {
+	if minorUnits == 0 || amount == 0 {
+		return strconv.FormatInt(amount, 10)
 	}
-	if !positive && amount > 0 {
-		str = "-" + str
+
+	divisor := pow10(minorUnits)
+	whole := amount / divisor
+	fraction := amount % divisor
+	sign := ""
+	if amount < 0 {
+		sign = "-"
+		whole = -whole
+		fraction = -fraction
 	}
-	return str
+
+	return sign + strconv.FormatInt(whole, 10) + "," + fmt.Sprintf("%0*d", int(minorUnits), fraction)
 }
 
-func pow10(n uint8) uint64 {
-	powered := uint64(1)
+func pow10(n int16) int64 {
+	powered := int64(1)
 	for range n {
 		powered *= 10
 	}

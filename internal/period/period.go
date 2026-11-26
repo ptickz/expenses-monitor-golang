@@ -50,7 +50,7 @@ type WeekSlot struct {
 }
 
 func New(startDay int, mode WeekMode, loc *time.Location) (Calendar, error) {
-	if startDay < 1 || startDay > 31 {
+	if !ValidateStartDay(startDay) {
 		return Calendar{}, fmt.Errorf("start day %d out of range 1..31", startDay)
 	}
 	if loc == nil {
@@ -190,4 +190,8 @@ func (c Calendar) periodStartIn(year int, month time.Month) time.Time {
 
 func daysInMonth(year int, month time.Month) int {
 	return time.Date(year, month+1, 0, 0, 0, 0, 0, time.UTC).Day()
+}
+
+func ValidateStartDay(d int) bool {
+	return d >= 1 && d <= 31
 }

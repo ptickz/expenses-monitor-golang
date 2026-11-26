@@ -1,9 +1,11 @@
 package store
 
 import (
+	"errors"
 	"os"
 	"testing"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/joho/godotenv"
 	"github.com/ptickz/expenses-monitor-golang/internal/store/db"
@@ -68,6 +70,22 @@ func TestUserAndAdminQueries(t *testing.T) {
 		t.Fatalf("upsert must keep id and update name: got id %d name %q, want id %d name %q", again.ID, again.Name, u.ID, "new")
 	}
 
+	ensured, err := s.q.EnsureUser(ctx, db.EnsureUserParams{Source: db.UserSourceTELEGRAM, ExternalID: "42", Name: "placeholder"})
+	if err != nil {
+		t.Fatalf("ensure existing: %v", err)
+	}
+	if ensured.ID != u.ID || ensured.Name != "new" {
+		t.Fatalf("ensure must keep existing user untouched: got id %d name %q, want id %d name %q", ensured.ID, ensured.Name, u.ID, "new")
+	}
+
+	created, err := s.q.EnsureUser(ctx, db.EnsureUserParams{Source: db.UserSourceTELEGRAM, ExternalID: "43", Name: "placeholder"})
+	if err != nil {
+		t.Fatalf("ensure new: %v", err)
+	}
+	if created.ID == u.ID || created.Name != "placeholder" {
+		t.Fatalf("ensure must create a missing user: got id %d name %q", created.ID, created.Name)
+	}
+
 	isAdmin, err := s.q.IsAdmin(ctx, u.ID)
 	if err != nil {
 		t.Fatalf("is admin: %v", err)
@@ -88,5 +106,40 @@ func TestUserAndAdminQueries(t *testing.T) {
 	}
 	if !isAdmin {
 		t.Fatal("user must be admin after grant")
+	}
+}
+
+func TestInTx(t *testing.T) {
+	s := newTestStore(t)
+	ctx := t.Context()
+	errBoom := errors.New("boom")
+
+	err := s.InTx(ctx, func(q *db.Queries) error {
+		if _, err := q.UpsertUser(ctx, db.UpsertUserParams{Source: db.UserSourceTELEGRAM, ExternalID: "1", Name: "rolled back"}); err != nil {
+			return err
+		}
+		return errBoom
+	})
+	if !errors.Is(err, errBoom) {
+		t.Fatalf("InTx must return the fn error: got %v", err)
+	}
+	_, err = s.q.GetUserByExternalID(ctx, db.GetUserByExternalIDParams{Source: db.UserSourceTELEGRAM, ExternalID: "1"})
+	if !errors.Is(err, pgx.ErrNoRows) {
+		t.Fatalf("write must be rolled back on error: got %v", err)
+	}
+
+	err = s.InTx(ctx, func(q *db.Queries) error {
+		_, err := q.UpsertUser(ctx, db.UpsertUserParams{Source: db.UserSourceTELEGRAM, ExternalID: "2", Name: "committed"})
+		return err
+	})
+	if err != nil {
+		t.Fatalf("InTx: %v", err)
+	}
+	u, err := s.q.GetUserByExternalID(ctx, db.GetUserByExternalIDParams{Source: db.UserSourceTELEGRAM, ExternalID: "2"})
+	if err != nil {
+		t.Fatalf("write must be committed: %v", err)
+	}
+	if u.Name != "committed" {
+		t.Fatalf("got name %q, want %q", u.Name, "committed")
 	}
 }

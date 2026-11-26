@@ -311,3 +311,22 @@ func TestDaysBetween(t *testing.T) {
 		})
 	}
 }
+
+func TestValidateStartDay(t *testing.T) {
+	tests := []struct {
+		day  int
+		want bool
+	}{
+		{day: -1, want: false},
+		{day: 0, want: false},
+		{day: 1, want: true},
+		{day: 15, want: true},
+		{day: 31, want: true},
+		{day: 32, want: false},
+	}
+	for _, tt := range tests {
+		if got := ValidateStartDay(tt.day); got != tt.want {
+			t.Errorf("ValidateStartDay(%d) = %t, want %t", tt.day, got, tt.want)
+		}
+	}
+}
